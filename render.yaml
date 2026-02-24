@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: dr-vroom-brain
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 4
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./dr_vroom_brain.db
+      - key: MAX_CONNECTIONS
+        value: 1023
+    disk:
+      name: dr-vroom-data
+      mountPath: /app
+      sizeGB: 1
