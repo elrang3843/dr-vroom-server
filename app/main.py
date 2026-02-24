@@ -35,8 +35,10 @@ from app.db.points_schema import (
     GradeHistoryV2, InsurancePolicyV2, InsuranceClaimV2,
     InsurancePool, DisputeV2, MediationVoteV2, SoundContribution,
 )
+from app.db import community_schema  # register community models
 from app.api import diagnosis, knowledge, websocket, auth
 from app.api import grades_v2, insurance_v2, bounty_v2
+from app.api import memory, sound_report, community
 from app.services.ws_manager import ws_manager
 
 
@@ -45,9 +47,10 @@ async def lifespan(app: FastAPI):
     """서버 시작/종료 이벤트"""
     # 시작 시
     await init_db()
-    # 포인트 경제 테이블 초기화
+    # 포인트 경제 + 커뮤니티 테이블 초기화
     from app.db.database import engine, Base
     from app.db import points_schema  # register all v2 models
+    from app.db import community_schema  # register community models
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     print(f"🧠 {settings.APP_NAME_KR} ({settings.APP_NAME}) v{settings.VERSION}")
@@ -94,6 +97,18 @@ app = FastAPI(
     """,
     version=settings.VERSION,
     lifespan=lifespan,
+    openapi_tags=[
+        {"name": "auth", "description": "인증 (로그인/회원가입)"},
+        {"name": "diagnosis", "description": "차량 진단 (소리 분석)"},
+        {"name": "knowledge", "description": "지식 조회 및 교육"},
+        {"name": "websocket", "description": "실시간 WebSocket"},
+        {"name": "🧠 Brain Memory", "description": "브레인 메모리 — 중앙 지식 저장소"},
+        {"name": "🔊 Sound Reports", "description": "소리 제보 — 정상/고장 소리 공유"},
+        {"name": "👥 Community", "description": "커뮤니티 — 친구, 감사, 차량 모임"},
+        {"name": "grades", "description": "등급 시스템"},
+        {"name": "insurance", "description": "보험 프로그램"},
+        {"name": "bounty", "description": "현상금 게시판"},
+    ],
 )
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
@@ -115,6 +130,10 @@ app.include_router(websocket.router)
 app.include_router(grades_v2.router)
 app.include_router(insurance_v2.router)
 app.include_router(bounty_v2.router)
+# Community & Memory v3
+app.include_router(memory.router)
+app.include_router(sound_report.router)
+app.include_router(community.router)
 
 
 # ─── Root ─────────────────────────────────────────────────────────────────────
@@ -136,6 +155,14 @@ async def root():
             "bounty": "/api/v1/bounty/list",
             "insurance": "/api/v1/insurance/plans",
             "wallet": "/api/v1/bounty/wallet/me",
+            # Community v3
+            "brain_memory": "/api/v1/memory/list",
+            "sound_report": "/api/v1/sounds/reports",
+            "community_feed": "/api/v1/community/feed",
+            "friends": "/api/v1/community/friends",
+            "gratitude": "/api/v1/community/gratitude/send",
+            "notifications": "/api/v1/community/notifications",
+            "vehicle_groups": "/api/v1/community/groups/my-vehicle",
         },
         "connections": {
             "active": ws_manager.total_connections,
